@@ -1,0 +1,248 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/dependent.dart';
+
+class ApiService {
+  static const String baseUrl = 'http://202.83.165.73:2002/api1/';
+
+  static final Dio _dio = Dio(BaseOptions(
+    baseUrl: baseUrl,
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
+    contentType: Headers.jsonContentType,
+  ));
+
+ 
+  static Future<Map<String, dynamic>> login(int employeeId, String password) async {
+    try {
+      final response = await _dio.post(
+        '/login.php',
+        data: {'employee_id': employeeId, 'password': password},
+      );
+
+      final data = response.data is String
+          ? jsonDecode(response.data)
+          : response.data;
+
+      if (data['success'] == true && data['token'] != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', data['token']);
+      } else {
+       
+      }
+
+      return data;
+    } on DioException catch (e) {
+     
+      if (e.response?.statusCode == 401) {
+        throw Exception('Wrong credentials');
+      }
+      throw Exception('Login failed: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  // Request OTP
+  static Future<Map<String, dynamic>> requestOtp(String employeeId) async {
+    try {
+      final response = await _dio.post(
+        '/request_otp.php',
+        data: {'employee_id': employeeId},
+      );
+      return response.data is String ? jsonDecode(response.data) : response.data;
+    } on DioException catch (e) {
+      throw Exception('Failed to request OTP: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  // Verify OTP (first step)
+  static Future<Map<String, dynamic>> verifyOtp({
+    required String employeeId,
+    required String otp,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/verify_otp.php',
+        data: {'employee_id': employeeId, 'otp': otp},
+      );
+
+      final data = response.data is String ? jsonDecode(response.data) : response.data;
+
+      if (data['success'] == true && data['token'] != null) {
+        // Assuming it returns a temp token for the next step
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('temp_token', data['token']);
+      }
+
+      return data;
+    } on DioException catch (e) {
+      throw Exception('Failed to verify OTP: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  // Create account (second step)
+  static Future<Map<String, dynamic>> createPassword({
+    required String employeeId,
+    required String password,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tempToken = prefs.getString('temp_token');
+      if (tempToken == null) throw Exception('Missing verification token.');
+
+      final response = await _dio.post(
+        '/create_password.php', 
+        data: {'employee_id': employeeId, 'password': password, 'token': tempToken},
+      );
+
+      final data = response.data is String ? jsonDecode(response.data) : response.data;
+
+
+      if (data['success'] == true && data['token'] != null) {
+         await prefs.setString('auth_token', data['token']); 
+         await prefs.remove('temp_token'); 
+      }
+
+      return data;
+    } on DioException catch (e) {
+      throw Exception('Failed to create password: ${e.response?.data ?? e.message}');
+    }
+  }
+
+
+  static Future<List<Dependent>> getDependents() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      if (token == null) throw Exception('Not logged in: token missing');
+
+      final response = await _dio.get(
+        '/get_dependants.php',
+        options: Options(headers: {'Authorization': 'Bearer $token',
+         'X-App-Key': '4Abb^!*%_)@549~+noD!e.J_',
+        }),
+      );
+
+      print('Raw response type: ${response.data.runtimeType}');
+      print('API Response: ${response.data}');
+
+      dynamic data = response.data;
+
+      if (data is String) {
+        data = jsonDecode(data);
+      }
+
+      List<dynamic> dependentsList;
+
+      if (data is Map<String, dynamic>) {
+        if (data['success'] == true) {
+          final deps = data['dependents'];
+          if (deps is List) {
+            dependentsList = deps;
+          } else {
+            throw Exception('dependents field is not a list: $deps');
+          }
+        } else {
+          throw Exception('API returned success=false: ${data['message'] ?? data}');
+        }
+      } else if (data is List) {
+        dependentsList = data;
+      } else {
+        throw Exception('Unexpected response format: $data');
+      }
+
+      return dependentsList
+          .map((d) => Dependent.fromJson(d as Map<String, dynamic>))
+          .toList();
+
+    } on DioException catch (e) {
+      print('Network error: ${e.response?.data ?? e.message}');
+      rethrow;
+    }
+  }
+
+  // Update Dependent (example)
+  static Future<Map<String, dynamic>> updateDependent(
+    int id, Map<String, dynamic> fields) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    final response = await _dio.post(
+      '/update_dependant.php',
+      data: {'id': id, ...fields},
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+
+    print("Update response (raw): ${response.data}");
+
+dynamic data = response.data;
+if (data is String) {
+  try {
+    data = jsonDecode(data);
+  } catch (e) {
+    print("JSON decode error: $e");
+    throw Exception("Invalid JSON from server");
+  }
+}
+
+if (data is Map<String, dynamic>) {
+  return data;
+} else {
+  throw Exception("Unexpected response format: $data");
+}
+
+  } on DioException catch (e) {
+    print("Dio error  ${e.response?.data}");
+    print("Dio status: ${e.response?.statusCode}");
+    print("Dio message: ${e.message}");
+    rethrow;
+  }
+}
+
+static Future<Map<String, dynamic>> uploadFile(
+    int dependentId, String fieldKey, String filePath) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) {
+      throw Exception('Missing auth token. Please log in again.');
+    }
+    final formData = FormData.fromMap({
+      'dependent_id': dependentId.toString(),
+      'field': fieldKey,
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: filePath.split('/').last,
+      ),
+    });
+
+ 
+final response = await _dio.post(
+  '/upload.php',
+  data: formData, 
+  options: Options(
+    headers: {
+      'Authorization': 'Bearer $token',
+      'X-App-Key': '4Abb^!*%_)@549~+noD!e.J_',
+    },
+  ),
+);
+
+    print("Uploading $fieldKey for dependent $dependentId");
+    print("Upload response: ${response.data}");
+    if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+      return response.data;
+    } else {
+      throw Exception('Unexpected response format from server');
+    }
+  } on DioException catch (e) {
+    print(" Dio upload error: ${e.response?.data ?? e.message}");
+    rethrow;
+  } catch (e) {
+    print("General upload error: $e");
+    throw Exception('Upload failed: $e');
+  }
+}
+
+}
