@@ -54,12 +54,14 @@ class _DependentDetailFormState extends State<DependentDetailForm> {
       'cnic_front': null,
       'cnic_back': null,
       'bform': null,
+      'frc': null, // Add FRC file
     };
 
     if (widget.dependent.profilePictureUrl?.isNotEmpty == true) _lockedFields.add('profile_picture');
     if (widget.dependent.cnicFrontUrl?.isNotEmpty == true) _lockedFields.add('cnic_front');
     if (widget.dependent.cnicBackUrl?.isNotEmpty == true) _lockedFields.add('cnic_back');
     if (widget.dependent.bformUrl?.isNotEmpty == true) _lockedFields.add('bform');
+    if (widget.dependent.frcUrl?.isNotEmpty == true) _lockedFields.add('frc'); // Add FRC to locked fields
   }
 
   bool _isEditable(String key) {
@@ -409,6 +411,8 @@ class _DependentDetailFormState extends State<DependentDetailForm> {
                                 _buildUploadButton('CNIC Front', 'cnic_front'),
                                 _buildUploadButton('CNIC Back', 'cnic_back'),
                                 _buildUploadButton('B-Form', 'bform'),
+                                // Show FRC upload only for self relationship
+                                if (_isSelfRelationship()) _buildUploadButton('FRC', 'frc'),
                               ],
                             ),
 
@@ -445,6 +449,12 @@ class _DependentDetailFormState extends State<DependentDetailForm> {
         ),
       ),
     );
+  }
+
+  // Check if the dependent has self relationship
+  bool _isSelfRelationship() {
+    final relationship = widget.dependent.relationshipType?.toLowerCase();
+    return relationship == 'self' || relationship == 'myself' || relationship == 'employee';
   }
 
   Widget _buildField(String label, String key, TextInputType inputType) {
@@ -528,6 +538,8 @@ Widget _buildUploadButton(String label, String fieldKey) {
     hasServerFile = widget.dependent.cnicBackUrl?.isNotEmpty == true;
   } else if (fieldKey == 'bform') {
     hasServerFile = widget.dependent.bformUrl?.isNotEmpty == true;
+  } else if (fieldKey == 'frc') { // Add FRC check
+    hasServerFile = widget.dependent.frcUrl?.isNotEmpty == true;
   }
 
   final isLocked = _isFieldLocked(fieldKey);

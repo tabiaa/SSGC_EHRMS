@@ -12,6 +12,7 @@ class Dependent {
   final String? cnicFrontUrl;
   final String? cnicBackUrl;
   final String? bformUrl;
+  final String? frcUrl; // Add FRC URL field
   final bool isPrepopulated;
 
   Dependent({
@@ -28,6 +29,7 @@ class Dependent {
     this.cnicFrontUrl,
     this.cnicBackUrl,
     this.bformUrl,
+    this.frcUrl, // Add FRC URL parameter
     required this.isPrepopulated,
   });
 
@@ -65,6 +67,7 @@ class Dependent {
     cnicFrontUrl: json['cnic_front_url'],
     cnicBackUrl: json['cnic_back_url'],
     bformUrl: json['bform_url'],
+    frcUrl: json['frc_url'], // Add FRC URL from JSON
     isPrepopulated: _parseBool(json['is_prepopulated']),
   );
 }

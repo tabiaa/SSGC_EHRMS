@@ -5,6 +5,8 @@ import '../models/employee.dart';
 import '../services/auth_service.dart';
 import 'dependents_screen.dart';
 import 'signup_screen.dart';
+import 'forgot_password.dart';
+import 'package:flutter/services.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -177,6 +179,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               ),
                                maxLength: 6,
                               keyboardType: TextInputType.number,
+                              inputFormatters: [
+    FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+  ],
                               validator: (v) => v!.isEmpty ? 'Please enter Employee ID' : null,
                             ),
                             const SizedBox(height: 16),
@@ -226,6 +231,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 ),
                               ),
                             ),
+                                              // In your login screen, add this button
+TextButton(
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
+  },
+  child: const Text('Forgot Password?'),
+),
                           ],
                         ),
                       ),

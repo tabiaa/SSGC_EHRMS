@@ -28,17 +28,17 @@ class ApiService {
       if (data['success'] == true && data['token'] != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', data['token']);
-      } else {
-       
       }
 
       return data;
     } on DioException catch (e) {
-     
-      if (e.response?.statusCode == 401) {
-        throw Exception('Wrong credentials');
-      }
-      throw Exception('Login failed: ${e.response?.data ?? e.message}');
+      // Return error message instead of throwing exception
+      final errorMessage = e.response?.data?['message'] ?? 
+                           e.response?.data?.toString() ?? 
+                           'Login failed: ${e.message}';
+      return {'success': false, 'message': errorMessage};
+    } catch (e) {
+      return {'success': false, 'message': 'Login failed: $e'};
     }
   }
 
@@ -51,7 +51,13 @@ class ApiService {
       );
       return response.data is String ? jsonDecode(response.data) : response.data;
     } on DioException catch (e) {
-      throw Exception('Failed to request OTP: ${e.response?.data ?? e.message}');
+      // Return error message instead of throwing exception
+      final errorMessage = e.response?.data?['message'] ?? 
+                           e.response?.data?.toString() ?? 
+                           'Failed to request OTP: ${e.message}';
+      return {'success': false, 'message': errorMessage};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to request OTP: $e'};
     }
   }
 
@@ -76,7 +82,13 @@ class ApiService {
 
       return data;
     } on DioException catch (e) {
-      throw Exception('Failed to verify OTP: ${e.response?.data ?? e.message}');
+      // Return error message instead of throwing exception
+      final errorMessage = e.response?.data?['message'] ?? 
+                           e.response?.data?.toString() ?? 
+                           'Failed to verify OTP: ${e.message}';
+      return {'success': false, 'message': errorMessage};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to verify OTP: $e'};
     }
   }
 
@@ -88,7 +100,7 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final tempToken = prefs.getString('temp_token');
-      if (tempToken == null) throw Exception('Missing verification token.');
+      if (tempToken == null) return {'success': false, 'message': 'Missing verification token.'};
 
       final response = await _dio.post(
         '/create_password.php', 
@@ -105,7 +117,13 @@ class ApiService {
 
       return data;
     } on DioException catch (e) {
-      throw Exception('Failed to create password: ${e.response?.data ?? e.message}');
+      // Return error message instead of throwing exception
+      final errorMessage = e.response?.data?['message'] ?? 
+                           e.response?.data?.toString() ?? 
+                           'Failed to create password: ${e.message}';
+      return {'success': false, 'message': errorMessage};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to create password: $e'};
     }
   }
 
@@ -114,7 +132,7 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
-      if (token == null) throw Exception('Not logged in: token missing');
+      if (token == null) return []; // Return empty list if not logged in
 
       final response = await _dio.get(
         '/get_dependants.php',
@@ -140,15 +158,18 @@ class ApiService {
           if (deps is List) {
             dependentsList = deps;
           } else {
-            throw Exception('dependents field is not a list: $deps');
+            print('Error: dependents field is not a list: $deps');
+            return [];
           }
         } else {
-          throw Exception('API returned success=false: ${data['message'] ?? data}');
+          print('API returned success=false: ${data['message'] ?? data}');
+          return [];
         }
       } else if (data is List) {
         dependentsList = data;
       } else {
-        throw Exception('Unexpected response format: $data');
+        print('Error: Unexpected response format: $data');
+        return [];
       }
 
       return dependentsList
@@ -157,7 +178,10 @@ class ApiService {
 
     } on DioException catch (e) {
       print('Network error: ${e.response?.data ?? e.message}');
-      rethrow;
+      return [];
+    } catch (e) {
+      print('General error: $e');
+      return [];
     }
   }
 
@@ -182,21 +206,26 @@ if (data is String) {
     data = jsonDecode(data);
   } catch (e) {
     print("JSON decode error: $e");
-    throw Exception("Invalid JSON from server");
+    return {'success': false, 'message': 'Invalid JSON from server'};
   }
 }
 
 if (data is Map<String, dynamic>) {
   return data;
 } else {
-  throw Exception("Unexpected response format: $data");
+  return {'success': false, 'message': 'Unexpected response format: $data'};
 }
 
   } on DioException catch (e) {
     print("Dio error  ${e.response?.data}");
     print("Dio status: ${e.response?.statusCode}");
     print("Dio message: ${e.message}");
-    rethrow;
+    final errorMessage = e.response?.data?['message'] ?? 
+                         e.response?.data?.toString() ?? 
+                         'Update failed: ${e.message}';
+    return {'success': false, 'message': errorMessage};
+  } catch (e) {
+    return {'success': false, 'message': 'Update failed: $e'};
   }
 }
 
@@ -206,7 +235,7 @@ static Future<Map<String, dynamic>> uploadFile(
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     if (token == null) {
-      throw Exception('Missing auth token. Please log in again.');
+      return {'success': false, 'message': 'Missing auth token. Please log in again.'};
     }
     final formData = FormData.fromMap({
       'dependent_id': dependentId.toString(),
@@ -234,15 +263,100 @@ final response = await _dio.post(
     if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
       return response.data;
     } else {
-      throw Exception('Unexpected response format from server');
+      return {'success': false, 'message': 'Unexpected response format from server'};
     }
   } on DioException catch (e) {
     print(" Dio upload error: ${e.response?.data ?? e.message}");
-    rethrow;
+    final errorMessage = e.response?.data?['message'] ?? 
+                         e.response?.data?.toString() ?? 
+                         'Upload failed: ${e.message}';
+    return {'success': false, 'message': errorMessage};
   } catch (e) {
     print("General upload error: $e");
-    throw Exception('Upload failed: $e');
+    return {'success': false, 'message': 'Upload failed: $e'};
   }
 }
+
+  // Forgot Password Methods
+  static Future<Map<String, dynamic>> requestForgotPasswordOtp(String employeeId) async {
+    try {
+      final response = await _dio.post(
+        '/forgot_password_request.php',
+        data: {'employee_id': employeeId},
+      );
+      return response.data is String ? jsonDecode(response.data) : response.data;
+    } on DioException catch (e) {
+      // Return error message instead of throwing exception
+      final errorMessage = e.response?.data?['message'] ?? 
+                           e.response?.data?.toString() ?? 
+                           'Failed to request OTP: ${e.message}';
+      return {'success': false, 'message': errorMessage};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to request OTP: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyForgotPasswordOtp({
+    required String employeeId,
+    required String otp,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/forgot_password_verify.php',
+        data: {'employee_id': employeeId, 'otp': otp},
+      );
+
+      final data = response.data is String ? jsonDecode(response.data) : response.data;
+
+      if (data['success'] == true && data['token'] != null) {
+        // Store temp token for password reset
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('forgot_password_temp_token', data['token']);
+      }
+
+      return data;
+    } on DioException catch (e) {
+      // Return error message instead of throwing exception
+      final errorMessage = e.response?.data?['message'] ?? 
+                           e.response?.data?.toString() ?? 
+                           'Failed to verify OTP: ${e.message}';
+      return {'success': false, 'message': errorMessage};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to verify OTP: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> resetPassword({
+    required String employeeId,
+    required String newPassword,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tempToken = prefs.getString('forgot_password_temp_token');
+      if (tempToken == null) return {'success': false, 'message': 'Verification token expired. Please restart the process.'};
+
+      final response = await _dio.post(
+        '/forgot_password_reset.php',
+        data: {'employee_id': employeeId, 'password': newPassword, 'token': tempToken},
+      );
+
+      final data = response.data is String ? jsonDecode(response.data) : response.data;
+
+      if (data['success'] == true) {
+        // Clear the temp token after successful reset
+        await prefs.remove('forgot_password_temp_token');
+      }
+
+      return data;
+    } on DioException catch (e) {
+      // Return error message instead of throwing exception
+      final errorMessage = e.response?.data?['message'] ?? 
+                           e.response?.data?.toString() ?? 
+                           'Failed to reset password: ${e.message}';
+      return {'success': false, 'message': errorMessage};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to reset password: $e'};
+    }
+  }
 
 }

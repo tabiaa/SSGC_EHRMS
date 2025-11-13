@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
-
+import 'package:flutter/services.dart';
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
 
@@ -149,6 +149,10 @@ class _SignupScreenState extends State<SignupScreen> {
               labelText: "Employee ID",
               border: OutlineInputBorder(),
             ),
+             maxLength: 6,
+                              inputFormatters: [
+    FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+  ],
           ),
           const SizedBox(height: 30),
           ElevatedButton(
@@ -202,6 +206,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     setState(() => isPasswordVisible = !isPasswordVisible),
               ),
             ),
+            
           ),
           const SizedBox(height: 20),
           TextField(
