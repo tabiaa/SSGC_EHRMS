@@ -157,6 +157,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             decoration: const InputDecoration(
               labelText: "Employee ID",
               border: OutlineInputBorder(),
+              counterText: ''
             ),
              maxLength: 6,
                               inputFormatters: [

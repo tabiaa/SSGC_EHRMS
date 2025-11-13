@@ -148,6 +148,7 @@ class _SignupScreenState extends State<SignupScreen> {
             decoration: const InputDecoration(
               labelText: "Employee ID",
               border: OutlineInputBorder(),
+              counterText: ''
             ),
              maxLength: 6,
                               inputFormatters: [
