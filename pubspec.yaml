@@ -44,6 +44,7 @@ dependencies:
   google_mlkit_face_detection: ^0.13.1
   package_info_plus: ^9.0.0
   photo_view: ^0.15.0
+  url_launcher: ^6.2.12
 
 dev_dependencies:
   flutter_test:
